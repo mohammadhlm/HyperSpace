@@ -100,10 +100,23 @@ check_daemon_status() {
     fi
 }
 
-# 安装本地模型的函数
+# 安装本地模型的函数（增加重试逻辑）
 install_local_model() {
     log_message "${BLUE}正在安装本地模型...${RESET}"
-    docker exec -i aios-container /app/aios-cli models add hf:TheBloke/Mistral-7B-Instruct-v0.1-GGUF:mistral-7b-instruct-v0.1.Q4_K_S.gguf || handle_error "安装本地模型失败。"
+    local n=1
+    local max=5
+    local delay=10
+    while true; do
+        docker exec -i aios-container /app/aios-cli models add hf:TheBloke/Mistral-7B-Instruct-v0.1-GGUF:mistral-7b-instruct-v0.1.Q4_K_S.gguf && \
+        log_message "${GREEN}本地模型已成功安装。${RESET}" && return 0
+        
+        log_message "安装本地模型失败，第 $n 次尝试失败！将在 $delay 秒后重试..."
+        sleep $delay
+        ((n++))
+        if (( n > max )); then
+            handle_error "安装本地模型失败，重试次数超限。"
+        fi
+    done
 }
 
 # 运行推理的函数
@@ -190,13 +203,5 @@ while true; do
         log_message "${GREEN}守护进程正在运行，状态已检查。${RESET}"
     fi
 
-    run_infer
-
-    docker exec -i aios-container /app/aios-cli hive login || log_message "${RED}Hive登录失败。${RESET}"
-    docker exec -i aios-container /app/aios-cli hive connect || log_message "${RED}连接Hive失败。${RESET}"
-
-    run_hive_infer
-
-    log_message "${GREEN}循环完成。等待1小时...${RESET}"
     sleep 3600
 done
