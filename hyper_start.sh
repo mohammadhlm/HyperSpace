@@ -19,7 +19,7 @@ log_message() {
 # 重试函数
 retry() {
     local n=1
-    local max=5
+    local max=20
     local delay=10
     while true; do
         "$@" && return 0
