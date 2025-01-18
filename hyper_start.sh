@@ -192,7 +192,8 @@ while true; do
         fi
     done
 
-    # 等待20分钟后再次检查
+    # 查询Hive积分
+    check_hive_points
     log_message "${CYAN}守护进程已成功启动，休眠20分钟...${RESET}"
     sleep 1200  # 20分钟（1200秒）
 done
