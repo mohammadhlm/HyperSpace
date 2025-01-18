@@ -137,6 +137,7 @@ while true; do
     get_private_key
     start_container
     wait_for_container_to_start
+    check_daemon_status
     install_local_model
     hive_login
     check_hive_points
