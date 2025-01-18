@@ -68,33 +68,12 @@ wait_for_container_to_start() {
     sleep 60
 }
 
-# 检查守护进程状态的函数
-check_daemon_status() {
-    log_message "${BLUE}正在检查容器内的守护进程状态...${RESET}"
-    docker exec -i aios-container /app/aios-cli status
-    if [[ $? -ne 0 ]]; then
-        log_message "${RED}守护进程未运行，正在重启...${RESET}"
-        docker exec -i aios-container /app/aios-cli kill
-        sleep 2
-        docker exec -i aios-container /app/aios-cli start
-        log_message "${GREEN}守护进程已重启。${RESET}"
-    else
-        log_message "${GREEN}守护进程正在运行。${RESET}"
-    fi
-}
-
 # 安装本地模型的函数（增加重试逻辑）
 install_local_model() {
     log_message "${BLUE}正在安装本地模型...${RESET}"
-    retry docker exec -i aios-container /app/aios-cli models add hf:TheBloke/Mistral-7B-Instruct-v0.1-GGUF:mistral-7b-instruct-v0.1.Q4_K_S.gguf
+    # retry docker exec -i aios-container /app/aios-cli models add hf:TheBloke/Mistral-7B-Instruct-v0.1-GGUF:mistral-7b-instruct-v0.1.Q4_K_S.gguf
+    retry docker exec -i aios-container /app/aios-cli models add hf:afrideva/Tiny-Vicuna-1B-GGUF:tiny-vicuna-1b.q4_k_m.gguf
     log_message "${GREEN}本地模型已成功安装。${RESET}"
-}
-
-# 运行推理的函数
-run_infer() {
-    log_message "${BLUE}正在运行推理...${RESET}"
-    retry docker exec -i aios-container /app/aios-cli infer --model hf:TheBloke/Mistral-7B-Instruct-v0.1-GGUF:mistral-7b-instruct-v0.1.Q4_K_S.gguf --prompt "What is 'Artificial Intelligence'?"
-    log_message "${GREEN}推理任务成功完成。${RESET}"
 }
 
 # 登录Hive的函数
@@ -107,7 +86,9 @@ hive_login() {
     while true; do
         docker exec -i aios-container /app/aios-cli hive import-keys /root/my.pem && \
         docker exec -i aios-container /app/aios-cli hive login && \
-        docker exec -i aios-container /app/aios-cli hive connect && \
+        docker exec -i aios-container /app/aios-cli hive select-tier 3 && \
+        docker exec -i aios-container /app/aios-cli hive allocate 8 && \
+        docker exec -i aios-container /app/aios-cli start --connect && \
         log_message "${GREEN}Hive登录成功。${RESET}" && return 0
 
         ((n++))
@@ -115,14 +96,6 @@ hive_login() {
         sleep $delay
         
     done
-}
-
-
-# 运行Hive推理的函数
-run_hive_infer() {
-    log_message "${BLUE}正在运行Hive推理...${RESET}"
-    retry docker exec -i aios-container /app/aios-cli hive infer --model hf:TheBloke/Mistral-7B-Instruct-v0.1-GGUF:mistral-7b-instruct-v0.1.Q4_K_S.gguf --prompt "Explain what a server is in simple terms."
-    log_message "${GREEN}Hive推理任务成功完成。${RESET}"
 }
 
 # 检查Hive积分的函数
@@ -144,53 +117,24 @@ cleanup_package_lists() {
     sudo rm -rf /var/lib/apt/lists/*
 }
 
-# 主脚本流程
-check_and_install_docker
-get_private_key
-start_container
-wait_for_container_to_start
-check_daemon_status
-install_local_model
-run_infer
-hive_login
-run_hive_infer
-check_hive_points
-get_current_signed_in_keys
-cleanup_package_lists
+while true; do
+
+    # 主脚本流程
+    check_and_install_docker
+    get_private_key
+    start_container
+    wait_for_container_to_start
+    install_local_model
+    hive_login
+    check_hive_points
+    get_current_signed_in_keys
+    cleanup_package_lists
+
+    log_message "${CYAN}已成功启动，休眠20分钟...${RESET}"
+    sleep 1200  # 20分钟（1200秒）
+done
+
 
 log_message "${GREEN}所有步骤已成功完成！${RESET}"
 
-# 每20分钟重复执行的循环
-while true; do
-    log_message "${CYAN}每20分钟重启一次进程...${RESET}"
-
-    # 杀死当前守护进程
-    docker exec -i aios-container /app/aios-cli kill || log_message "${RED}杀死守护进程失败。${RESET}"
-
-    # 确保守护进程成功启动
-    n=1
-    max=100
-    delay=10
-    while true; do
-        # 检查守护进程状态
-        docker exec -i aios-container /app/aios-cli status
-        if [[ $? -eq 0 ]]; then
-            log_message "${GREEN}守护进程正在运行，状态已检查。${RESET}"
-            break  # 守护进程启动成功，退出当前循环
-        else
-            log_message "${RED}守护进程启动失败，第 $n 次重试...将在 $delay 秒后重试...${RESET}"
-            ((n++))
-            if (( n > max )); then
-                log_message "${RED}守护进程启动失败，重试次数超限，退出...${RESET}"
-                exit 1  # 达到最大重试次数，退出脚本
-            fi
-            sleep $delay
-        fi
-    done
-
-    # 查询Hive积分
-    check_hive_points
-    log_message "${CYAN}守护进程已成功启动，休眠20分钟...${RESET}"
-    sleep 1200  # 20分钟（1200秒）
-done
 
