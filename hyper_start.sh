@@ -84,6 +84,7 @@ hive_login() {
     n=1
     delay=10
     while true; do
+        docker exec -i aios-container /app/aios-cli kill && \
         docker exec -i aios-container /app/aios-cli hive import-keys /root/my.pem && \
         docker exec -i aios-container /app/aios-cli hive login && \
         docker exec -i aios-container /app/aios-cli hive select-tier 3 && \
