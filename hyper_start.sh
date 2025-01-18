@@ -131,25 +131,23 @@ cleanup_package_lists() {
     sudo rm -rf /var/lib/apt/lists/*
 }
 
+check_and_install_docker
+get_private_key
+start_container
+wait_for_container_to_start
+install_local_model
+cleanup_package_lists
+
 while true; do
 
     # 主脚本流程
-    check_and_install_docker
-    get_private_key
-    start_container
-    wait_for_container_to_start
     check_daemon_status
-    install_local_model
     hive_login
     check_hive_points
     get_current_signed_in_keys
-    cleanup_package_lists
 
     log_message "${CYAN}已成功启动，休眠20分钟...${RESET}"
     sleep 1200  # 20分钟（1200秒）
 done
-
-
-log_message "${GREEN}所有步骤已成功完成！${RESET}"
 
 
