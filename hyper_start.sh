@@ -101,8 +101,8 @@ hive_login() {
     while true; do
         docker exec -i aios-container /app/aios-cli hive import-keys /root/my.pem && \
         docker exec -i aios-container /app/aios-cli hive login && \
+        docker exec -i aios-container /app/aios-cli hive select-tier 3 && \
         docker exec -i aios-container /app/aios-cli hive connect && \
-        # docker exec -i aios-container /app/aios-cli start --connect && \
         log_message "${GREEN}Hive登录成功。${RESET}" && return 0
 
         ((n++))
