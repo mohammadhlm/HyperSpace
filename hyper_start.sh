@@ -172,9 +172,9 @@ while true; do
     docker exec -i aios-container /app/aios-cli kill || log_message "${RED}杀死守护进程失败。${RESET}"
 
     # 确保守护进程成功启动
-    local n=1
-    local max=100
-    local delay=10
+    n=1
+    max=100
+    delay=10
     while true; do
         # 检查守护进程状态
         docker exec -i aios-container /app/aios-cli status
