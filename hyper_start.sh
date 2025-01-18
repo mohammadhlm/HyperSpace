@@ -102,9 +102,8 @@ hive_login() {
     log_message "${CYAN}正在登录Hive...${RESET}"
     
     # 将登录和连接步骤视为一个整体，重试整个过程
-    local n=1
-    local max=20
-    local delay=10
+    n=1
+    delay=10
     while true; do
         docker exec -i aios-container /app/aios-cli hive import-keys /root/my.pem && \
         docker exec -i aios-container /app/aios-cli hive login && \
@@ -113,11 +112,7 @@ hive_login() {
         
         log_message "Hive登录和连接失败，第 $n 次尝试失败！将在 $delay 秒后重试..."
         sleep $delay
-        ((n++))
-        if (( n > max )); then
-            log_message "${RED}Hive登录和连接失败，重试次数超限。${RESET}"
-            break
-        fi
+        
     done
 }
 
