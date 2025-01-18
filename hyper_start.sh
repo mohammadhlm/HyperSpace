@@ -100,11 +100,27 @@ run_infer() {
 # 登录Hive的函数
 hive_login() {
     log_message "${CYAN}正在登录Hive...${RESET}"
-    retry docker exec -i aios-container /app/aios-cli hive import-keys /root/my.pem
-    retry docker exec -i aios-container /app/aios-cli hive login
-    retry docker exec -i aios-container /app/aios-cli hive connect
-    log_message "${GREEN}Hive登录成功。${RESET}"
+    
+    # 将登录和连接步骤视为一个整体，重试整个过程
+    local n=1
+    local max=20
+    local delay=10
+    while true; do
+        docker exec -i aios-container /app/aios-cli hive import-keys /root/my.pem && \
+        docker exec -i aios-container /app/aios-cli hive login && \
+        docker exec -i aios-container /app/aios-cli hive connect && \
+        log_message "${GREEN}Hive登录成功。${RESET}" && return 0
+        
+        log_message "Hive登录和连接失败，第 $n 次尝试失败！将在 $delay 秒后重试..."
+        sleep $delay
+        ((n++))
+        if (( n > max )); then
+            log_message "${RED}Hive登录和连接失败，重试次数超限。${RESET}"
+            break
+        fi
+    done
 }
+
 
 # 运行Hive推理的函数
 run_hive_infer() {
@@ -148,18 +164,36 @@ cleanup_package_lists
 
 log_message "${GREEN}所有步骤已成功完成！${RESET}"
 
-# 每小时重复执行的循环
+# 每20分钟重复执行的循环
 while true; do
-    log_message "${CYAN}每1小时重启一次进程...${RESET}"
+    log_message "${CYAN}每20分钟重启一次进程...${RESET}"
 
+    # 杀死当前守护进程
     docker exec -i aios-container /app/aios-cli kill || log_message "${RED}杀死守护进程失败。${RESET}"
 
-    docker exec -i aios-container /app/aios-cli status
-    if [[ $? -ne 0 ]]; then
-        log_message "${RED}守护进程启动失败，正在重试...${RESET}"
-    else
-        log_message "${GREEN}守护进程正在运行，状态已检查。${RESET}"
-    fi
+    # 确保守护进程成功启动
+    local n=1
+    local max=100
+    local delay=10
+    while true; do
+        # 检查守护进程状态
+        docker exec -i aios-container /app/aios-cli status
+        if [[ $? -eq 0 ]]; then
+            log_message "${GREEN}守护进程正在运行，状态已检查。${RESET}"
+            break  # 守护进程启动成功，退出当前循环
+        else
+            log_message "${RED}守护进程启动失败，第 $n 次重试...将在 $delay 秒后重试...${RESET}"
+            ((n++))
+            if (( n > max )); then
+                log_message "${RED}守护进程启动失败，重试次数超限，退出...${RESET}"
+                exit 1  # 达到最大重试次数，退出脚本
+            fi
+            sleep $delay
+        fi
+    done
 
-    sleep 3600
+    # 等待20分钟后再次检查
+    log_message "${CYAN}守护进程已成功启动，休眠20分钟...${RESET}"
+    sleep 1200  # 20分钟（1200秒）
 done
+
