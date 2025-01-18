@@ -109,7 +109,8 @@ hive_login() {
         docker exec -i aios-container /app/aios-cli hive login && \
         docker exec -i aios-container /app/aios-cli hive connect && \
         log_message "${GREEN}Hive登录成功。${RESET}" && return 0
-        
+
+        ((n++))
         log_message "Hive登录和连接失败，第 $n 次尝试失败！将在 $delay 秒后重试..."
         sleep $delay
         
