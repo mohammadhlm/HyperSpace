@@ -68,6 +68,21 @@ wait_for_container_to_start() {
     sleep 60
 }
 
+# 检查守护进程状态的函数
+check_daemon_status() {
+    log_message "${BLUE}正在检查容器内的守护进程状态...${RESET}"
+    docker exec -i aios-container /app/aios-cli status
+    if [[ $? -ne 0 ]]; then
+        log_message "${RED}守护进程未运行，正在重启...${RESET}"
+        docker exec -i aios-container /app/aios-cli kill
+        sleep 2
+        docker exec -i aios-container /app/aios-cli start
+        log_message "${GREEN}守护进程已重启。${RESET}"
+    else
+        log_message "${GREEN}守护进程正在运行。${RESET}"
+    fi
+}
+
 # 安装本地模型的函数（增加重试逻辑）
 install_local_model() {
     log_message "${BLUE}正在安装本地模型...${RESET}"
@@ -84,11 +99,8 @@ hive_login() {
     n=1
     delay=10
     while true; do
-        docker exec -i aios-container /app/aios-cli kill && \
         docker exec -i aios-container /app/aios-cli hive import-keys /root/my.pem && \
         docker exec -i aios-container /app/aios-cli hive login && \
-        # docker exec -i aios-container /app/aios-cli hive select-tier 3 && \
-        # docker exec -i aios-container /app/aios-cli hive allocate 8 && \
         docker exec -i aios-container /app/aios-cli start --connect && \
         log_message "${GREEN}Hive登录成功。${RESET}" && return 0
 
