@@ -9,6 +9,9 @@ RESET='\033[0m'
 
 # 日志文件路径
 LOG_FILE="/root/script_progress.log"
+CONTAINER_NAME="aios-container"
+MIN_RESTART_INTERVAL=300  # 最小重启间隔，单位：秒
+LAST_RESTART=0  # 最后重启时间
 
 # 记录日志的函数
 log_message() {
@@ -26,15 +29,6 @@ retry() {
         sleep $delay
         ((n++))
     done
-}
-
-# 获取私钥的函数
-get_private_key() {
-    log_message "${CYAN}准备私钥...${RESET}"
-    read -p "请输入你的私钥: " private_key
-    echo -e "$private_key" > /root/my.pem
-    chmod 600 /root/my.pem
-    log_message "${GREEN}私钥已保存为 my.pem，并设置了正确的权限。${RESET}"
 }
 
 # 检查并安装Docker的函数
@@ -130,23 +124,47 @@ cleanup_package_lists() {
     sudo rm -rf /var/lib/apt/lists/*
 }
 
+# 主脚本流程
 check_and_install_docker
 get_private_key
 start_container
 wait_for_container_to_start
 install_local_model
+check_daemon_status
+hive_login
+check_hive_points
+get_current_signed_in_keys
+cleanup_package_lists
 
-while true; do
+# 监控容器日志并触发操作
+docker logs -f "$CONTAINER_NAME" | while read -r line; do
+    current_time=$(date +%s)
 
-    # 主脚本流程
-    check_daemon_status
-    hive_login
-    check_hive_points
-    get_current_signed_in_keys
-    cleanup_package_lists
+    # 检测到以下几种情况，触发重启
+    if echo "$line" | grep -q "Last pong received.*Sending reconnect signal" || \
+       echo "$line" | grep -q "Failed to authenticate" || \
+       echo "$line" | grep -q "Failed to connect to Hive" || \
+       echo "$line" | grep -q "Another instance is already running" || \
+       echo "$line" | grep -q "\"message\": \"Internal server error\""; then
 
-    log_message "${CYAN}已成功启动，休眠20分钟...${RESET}"
-    sleep 1200  # 20分钟（1200秒）
+        # 检查是否超出最小重启间隔
+        if [ $((current_time - LAST_RESTART)) -gt $MIN_RESTART_INTERVAL ]; then
+            echo "$(date): 检测到错误，正在重启服务..." >> "$LOG_FILE"
+
+            # 执行容器操作
+            docker exec -i "$CONTAINER_NAME" /app/aios-cli kill
+            sleep 2
+            docker exec -i "$CONTAINER_NAME" /app/aios-cli start
+
+            # 执行Hive登录和积分检查
+            hive_login
+            check_hive_points
+            get_current_signed_in_keys
+
+            LAST_RESTART=$current_time  # 更新重启时间
+            echo "$(date): 服务已重启" >> "$LOG_FILE"
+        fi
+    fi
 done
 
 
