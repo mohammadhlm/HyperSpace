@@ -86,7 +86,6 @@ check_daemon_status() {
 # 安装本地模型的函数（增加重试逻辑）
 install_local_model() {
     log_message "${BLUE}正在安装本地模型...${RESET}"
-    # retry docker exec -i aios-container /app/aios-cli models add hf:TheBloke/Mistral-7B-Instruct-v0.1-GGUF:mistral-7b-instruct-v0.1.Q4_K_S.gguf
     retry docker exec -i aios-container /app/aios-cli models add hf:afrideva/Tiny-Vicuna-1B-GGUF:tiny-vicuna-1b.q4_k_m.gguf
     log_message "${GREEN}本地模型已成功安装。${RESET}"
 }
@@ -136,7 +135,6 @@ get_private_key
 start_container
 wait_for_container_to_start
 install_local_model
-cleanup_package_lists
 
 while true; do
 
@@ -145,6 +143,7 @@ while true; do
     hive_login
     check_hive_points
     get_current_signed_in_keys
+    cleanup_package_lists
 
     log_message "${CYAN}已成功启动，休眠20分钟...${RESET}"
     sleep 1200  # 20分钟（1200秒）
