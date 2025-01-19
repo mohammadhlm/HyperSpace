@@ -126,7 +126,6 @@ cleanup_package_lists() {
 
 # 主脚本流程
 check_and_install_docker
-get_private_key
 start_container
 wait_for_container_to_start
 install_local_model
