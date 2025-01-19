@@ -11,7 +11,7 @@ RESET='\033[0m'
 LOG_FILE="/root/script_progress.log"
 CONTAINER_NAME="aios-container"
 MIN_RESTART_INTERVAL=300  # 最小重启间隔，单位：秒
-LAST_RESTART=0  # 最后重启时间
+LAST_ERROR_TIME=0 # 错误标记时间
 
 # 记录日志的函数
 log_message() {
@@ -135,6 +135,7 @@ check_hive_points
 get_current_signed_in_keys
 cleanup_package_lists
 
+
 # 监控容器日志并触发操作
 docker logs -f "$CONTAINER_NAME" | while read -r line; do
     current_time=$(date +%s)
@@ -146,8 +147,8 @@ docker logs -f "$CONTAINER_NAME" | while read -r line; do
        echo "$line" | grep -q "Another instance is already running" || \
        echo "$line" | grep -q "\"message\": \"Internal server error\""; then
 
-        # 检查是否超出最小重启间隔
-        if [ $((current_time - LAST_RESTART)) -gt $MIN_RESTART_INTERVAL ]; then
+        # 只有当错误的发生时间与上次重启时间的间隔大于最小重启间隔时才执行重启
+        if [ $((current_time - LAST_ERROR_TIME)) -gt $MIN_RESTART_INTERVAL ]; then
             echo "$(date): 检测到错误，正在重启服务..." >> "$LOG_FILE"
 
             # 执行容器操作
@@ -160,7 +161,9 @@ docker logs -f "$CONTAINER_NAME" | while read -r line; do
             check_hive_points
             get_current_signed_in_keys
 
-            LAST_RESTART=$current_time  # 更新重启时间
+            # 更新错误处理标记，记录错误发生时间
+            LAST_ERROR_TIME=$current_time
+
             echo "$(date): 服务已重启" >> "$LOG_FILE"
         fi
     fi
