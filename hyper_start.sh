@@ -188,7 +188,9 @@ docker logs -f "$CONTAINER_NAME" | while read -r line; do
             
         fi
     fi
-
+    
+    log_message "${BLUE}容器日志无异常...${RESET}"
+    
     ((n++))
 done
 
