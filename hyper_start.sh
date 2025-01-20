@@ -87,23 +87,41 @@ install_local_model() {
 # 登录Hive的函数
 hive_login() {
     log_message "${CYAN}正在登录Hive...${RESET}"
-    
-    # 将登录和连接步骤视为一个整体，重试整个过程
+
     n=1
     delay=10
     while true; do
-        docker exec -i aios-container /app/aios-cli hive import-keys /root/my.pem && \
-        docker exec -i aios-container /app/aios-cli hive login && \
-        docker exec -i aios-container /app/aios-cli hive select-tier 3 && \
-        docker exec -i aios-container /app/aios-cli hive connect && \
-        log_message "${GREEN}Hive登录成功。${RESET}" && return 0
+        docker exec -i aios-container /app/aios-cli hive import-keys /root/my.pem
+        if [ $? -ne 0 ]; then
+            log_message "第 $n 次尝试失败: 无法导入密钥。退出码: $?"
+        fi
+
+        docker exec -i aios-container /app/aios-cli hive login
+        if [ $? -ne 0 ]; then
+            log_message "第 $n 次尝试失败: Hive登录失败。退出码: $?"
+        fi
+
+        docker exec -i aios-container /app/aios-cli hive select-tier 3
+        if [ $? -ne 0 ]; then
+            log_message "第 $n 次尝试失败: 无法选择tier 3。退出码: $?"
+        fi
+
+        docker exec -i aios-container /app/aios-cli hive connect
+        if [ $? -ne 0 ]; then
+            log_message "第 $n 次尝试失败: 无法连接到Hive。退出码: $?"
+        fi
+
+        if [ $? -eq 0 ]; then
+            log_message "${GREEN}Hive登录成功。${RESET}"
+            return 0
+        fi
 
         ((n++))
         log_message "Hive登录和连接失败，第 $n 次尝试失败！将在 $delay 秒后重试..."
         sleep $delay
-        
     done
 }
+
 
 # 检查Hive积分的函数
 check_hive_points() {
