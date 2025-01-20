@@ -158,7 +158,7 @@ cleanup_package_lists
 docker logs -f "$CONTAINER_NAME" | while read -r line; do
     current_time=$(date +%s)
     n=1
-    log_message "${BLUE}开始第 $n 监控容器日志...${RESET}"
+    log_message "${BLUE}开始第 $n 次监控容器日志...${RESET}"
 
     # 检测到以下几种情况，触发重启
     if echo "$line" | grep -q "Last pong received.*Sending reconnect signal" || \
@@ -169,7 +169,7 @@ docker logs -f "$CONTAINER_NAME" | while read -r line; do
 
         # 只有当错误的发生时间与上次重启时间的间隔大于最小重启间隔时才执行重启
         if [ $((current_time - LAST_ERROR_TIME)) -gt $MIN_RESTART_INTERVAL ]; then
-            echo "$(date): 检测到错误，正在重启服务..." >> "$LOG_FILE"
+            log_message "${BLUE}检测到错误，正在重新连接...${RESET}"
 
             # 执行容器操作
             docker exec -i "$CONTAINER_NAME" /app/aios-cli kill
@@ -185,9 +185,11 @@ docker logs -f "$CONTAINER_NAME" | while read -r line; do
             LAST_ERROR_TIME=$current_time
 
             echo "$(date): 服务已重启" >> "$LOG_FILE"
-            ((n++))
+            
         fi
     fi
+
+    ((n++))
 done
 
 
