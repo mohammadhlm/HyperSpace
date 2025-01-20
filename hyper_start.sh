@@ -157,8 +157,7 @@ cleanup_package_lists
 # 监控容器日志并触发操作
 docker logs -f "$CONTAINER_NAME" | while read -r line; do
     current_time=$(date +%s)
-    n=1
-    log_message "${BLUE}开始第 $n 次监控容器日志...${RESET}"
+    log_message "${BLUE}开始监控容器日志...${RESET}"
 
     # 检测到以下几种情况，触发重启
     if echo "$line" | grep -q "Last pong received.*Sending reconnect signal" || \
@@ -190,8 +189,6 @@ docker logs -f "$CONTAINER_NAME" | while read -r line; do
     fi
     
     log_message "${BLUE}容器日志无异常...${RESET}"
-    
-    ((n++))
 done
 
 
