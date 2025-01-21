@@ -155,12 +155,11 @@ cleanup_package_lists
 
 
 # 监控容器日志并触发操作
-# 监控容器日志并触发操作
 docker logs -f "$CONTAINER_NAME" | while read -r line; do
     current_time=$(date +%s)
     log_message "${BLUE}开始监控容器日志...${RESET}"
 
-    # 检测到以下几种情况，触发重启
+    # 只在检测到异常时触发重启
     if echo "$line" | grep -q "Last pong received.*Sending reconnect signal" || \
        echo "$line" | grep -q "Failed to authenticate" || \
        echo "$line" | grep -q "Failed to connect to Hive" || \
@@ -188,9 +187,11 @@ docker logs -f "$CONTAINER_NAME" | while read -r line; do
             echo "$(date): 服务已重启" >> "$LOG_FILE"
             
         fi
+    else
+        # 如果没有检测到异常，则显示容器日志无异常
+        log_message "${BLUE}容器日志无异常...${RESET}"
     fi
-    
-    log_message "${BLUE}容器日志无异常...${RESET}"
 done
+
 
 
