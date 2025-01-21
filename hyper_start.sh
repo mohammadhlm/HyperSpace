@@ -159,7 +159,7 @@ cleanup_package_lists
 # 监控容器日志并触发操作
 while true; do
     # 获取最新日志并逐行读取（只读取最新10条)
-    docker logs --tail 10 -f "$CONTAINER_NAME" | while read -r line; do
+    docker logs --tail 10 "$CONTAINER_NAME" | while read -r line; do
         log_message "${BLUE}开始监控容器日志...${RESET}"
 
         # 只在检测到异常时触发重启
@@ -185,9 +185,6 @@ while true; do
             echo "$(date): 服务已重启" >> "$LOG_FILE"
         fi
     done
-
-    # 清空日志，防止再次读取之前的日志
-    # > /var/lib/docker/containers/$(docker ps -q --filter "name=$CONTAINER_NAME")/logs/*
 
     # 休眠 5 分钟后再次检测
     log_message "${BLUE}容器日志已检查，5分钟后再次检查...${RESET}"
