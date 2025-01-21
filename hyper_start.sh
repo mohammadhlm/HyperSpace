@@ -61,7 +61,7 @@ start_container() {
 # 等待容器初始化的函数
 wait_for_container_to_start() {
     log_message "${CYAN}正在等待容器初始化...${RESET}"
-    sleep 60
+    sleep 30
 }
 
 # 检查守护进程状态的函数
@@ -158,7 +158,7 @@ cleanup_package_lists
 
 # 监控容器日志并触发操作
 while true; do
-    # 获取最新日志并逐行读取（）只读取最后10条)
+    # 获取最新日志并逐行读取（只读取最新10条)
     docker logs --tail 10 -f "$CONTAINER_NAME" | while read -r line; do
         log_message "${BLUE}开始监控容器日志...${RESET}"
 
