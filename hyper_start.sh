@@ -192,7 +192,7 @@ docker logs -f "$CONTAINER_NAME" | while read -r line; do
             fi
         else
             # 如果没有检测到异常，则显示容器日志无异常
-            log_message "${BLUE}容器日志无异常...${RESET}"
+            log_message "${BLUE}容器日志无异常，5分钟后再次检查...${RESET}"
         fi
 
         # 更新上次检查时间
