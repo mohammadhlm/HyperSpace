@@ -12,6 +12,8 @@ LOG_FILE="/root/script_progress.log"
 CONTAINER_NAME="aios-container"
 MIN_RESTART_INTERVAL=300  # 最小重启间隔，单位：秒
 LAST_ERROR_TIME=0 # 错误标记时间
+last_check_time=0  # 上次检查时间
+check_interval=300 # 检查间隔，单位：秒（5分钟）
 
 # 记录日志的函数
 log_message() {
@@ -157,40 +159,43 @@ cleanup_package_lists
 # 监控容器日志并触发操作
 docker logs -f "$CONTAINER_NAME" | while read -r line; do
     current_time=$(date +%s)
-    log_message "${BLUE}开始监控容器日志...${RESET}"
 
-    # 只在检测到异常时触发重启
-    if echo "$line" | grep -q "Last pong received.*Sending reconnect signal" || \
-       echo "$line" | grep -q "Failed to authenticate" || \
-       echo "$line" | grep -q "Failed to connect to Hive" || \
-       echo "$line" | grep -q "already running" || \
-       echo "$line" | grep -q "\"message\": \"Internal server error\"" ; then
+    # 如果当前时间与上次检查时间的间隔大于设定的检查间隔（5分钟），才进行日志检查
+    if [ $((current_time - last_check_time)) -gt $check_interval ]; then
+        log_message "${BLUE}开始监控容器日志...${RESET}"
 
-        # 只有当错误的发生时间与上次重启时间的间隔大于最小重启间隔时才执行重启
-        if [ $((current_time - LAST_ERROR_TIME)) -gt $MIN_RESTART_INTERVAL ]; then
-            log_message "${BLUE}检测到错误，正在重新连接...${RESET}"
+        # 只在检测到异常时触发重启
+        if echo "$line" | grep -q "Last pong received.*Sending reconnect signal" || \
+           echo "$line" | grep -q "Failed to authenticate" || \
+           echo "$line" | grep -q "Failed to connect to Hive" || \
+           echo "$line" | grep -q "already running" || \
+           echo "$line" | grep -q "\"message\": \"Internal server error\"" ; then
 
-            # 执行容器操作
-            docker exec -i "$CONTAINER_NAME" /app/aios-cli kill
-            sleep 2
-            docker exec -i "$CONTAINER_NAME" /app/aios-cli start
+            # 只有当错误的发生时间与上次重启时间的间隔大于最小重启间隔时才执行重启
+            if [ $((current_time - LAST_ERROR_TIME)) -gt $MIN_RESTART_INTERVAL ]; then
+                log_message "${BLUE}检测到错误，正在重新连接...${RESET}"
 
-            # 执行Hive登录和积分检查
-            hive_login
-            check_hive_points
-            get_current_signed_in_keys
+                # 执行容器操作
+                docker exec -i "$CONTAINER_NAME" /app/aios-cli kill
+                sleep 2
+                docker exec -i "$CONTAINER_NAME" /app/aios-cli start
 
-            # 更新错误处理标记，记录错误发生时间
-            LAST_ERROR_TIME=$current_time
+                # 执行Hive登录和积分检查
+                hive_login
+                check_hive_points
+                get_current_signed_in_keys
 
-            echo "$(date): 服务已重启" >> "$LOG_FILE"
-            
+                # 更新错误处理标记，记录错误发生时间
+                LAST_ERROR_TIME=$current_time
+
+                echo "$(date): 服务已重启" >> "$LOG_FILE"
+            fi
+        else
+            # 如果没有检测到异常，则显示容器日志无异常
+            log_message "${BLUE}容器日志无异常...${RESET}"
         fi
-    else
-        # 如果没有检测到异常，则显示容器日志无异常
-        log_message "${BLUE}容器日志无异常...${RESET}"
+
+        # 更新上次检查时间
+        last_check_time=$current_time
     fi
 done
-
-
-
