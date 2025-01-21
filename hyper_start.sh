@@ -157,11 +157,9 @@ cleanup_package_lists
 
 
 # 监控容器日志并触发操作
-docker logs -f "$CONTAINER_NAME" | while read -r line; do
-    current_time=$(date +%s)
-
-    # 如果当前时间与上次检查时间的间隔大于设定的检查间隔（5分钟），才进行日志检查
-    if [ $((current_time - last_check_time)) -gt $check_interval ]; then
+while true; do
+    # 获取最新日志并逐行读取
+    docker logs --tail 1000 -f "$CONTAINER_NAME" | while read -r line; do
         log_message "${BLUE}开始监控容器日志...${RESET}"
 
         # 只在检测到异常时触发重启
@@ -171,31 +169,27 @@ docker logs -f "$CONTAINER_NAME" | while read -r line; do
            echo "$line" | grep -q "already running" || \
            echo "$line" | grep -q "\"message\": \"Internal server error\"" ; then
 
-            # 只有当错误的发生时间与上次重启时间的间隔大于最小重启间隔时才执行重启
-            if [ $((current_time - LAST_ERROR_TIME)) -gt $MIN_RESTART_INTERVAL ]; then
-                log_message "${BLUE}检测到错误，正在重新连接...${RESET}"
+            log_message "${BLUE}检测到错误，正在重新连接...${RESET}"
 
-                # 执行容器操作
-                docker exec -i "$CONTAINER_NAME" /app/aios-cli kill
-                sleep 2
-                docker exec -i "$CONTAINER_NAME" /app/aios-cli start
+            # 执行容器操作
+            docker exec -i "$CONTAINER_NAME" /app/aios-cli kill
+            sleep 2
+            docker exec -i "$CONTAINER_NAME" /app/aios-cli start
 
-                # 执行Hive登录和积分检查
-                hive_login
-                check_hive_points
-                get_current_signed_in_keys
+            # 执行Hive登录和积分检查
+            hive_login
+            check_hive_points
+            get_current_signed_in_keys
 
-                # 更新错误处理标记，记录错误发生时间
-                LAST_ERROR_TIME=$current_time
-
-                echo "$(date): 服务已重启" >> "$LOG_FILE"
-            fi
-        else
-            # 如果没有检测到异常，则显示容器日志无异常
-            log_message "${BLUE}容器日志无异常，5分钟后再次检查...${RESET}"
+            # 记录服务已重启
+            echo "$(date): 服务已重启" >> "$LOG_FILE"
         fi
+    done
 
-        # 更新上次检查时间
-        last_check_time=$current_time
-    fi
+    # 清空日志，防止再次读取之前的日志
+    > /var/lib/docker/containers/$(docker ps -q --filter "name=$CONTAINER_NAME")/logs/*
+
+    # 休眠 5 分钟后再次检测
+    log_message "${BLUE}容器日志已检查，5分钟后再次检查...${RESET}"
+    sleep 300
 done
