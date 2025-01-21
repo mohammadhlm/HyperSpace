@@ -163,9 +163,8 @@ docker logs -f "$CONTAINER_NAME" | while read -r line; do
     if echo "$line" | grep -q "Last pong received.*Sending reconnect signal" || \
        echo "$line" | grep -q "Failed to authenticate" || \
        echo "$line" | grep -q "Failed to connect to Hive" || \
-       echo "$line" | grep -q "Another instance is already running" || \
-       echo "$line" | grep -q "\"message\": \"Internal server error\"" || \
-       echo "$line" | grep -q "Checked for auto-update, already running latest version"; then
+       echo "$line" | grep -q "already running" || \
+       echo "$line" | grep -q "\"message\": \"Internal server error\"" ; then
 
         # 只有当错误的发生时间与上次重启时间的间隔大于最小重启间隔时才执行重启
         if [ $((current_time - LAST_ERROR_TIME)) -gt $MIN_RESTART_INTERVAL ]; then
