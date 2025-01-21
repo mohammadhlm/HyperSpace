@@ -10,10 +10,6 @@ RESET='\033[0m'
 # 日志文件路径
 LOG_FILE="/root/script_progress.log"
 CONTAINER_NAME="aios-container"
-MIN_RESTART_INTERVAL=300  # 最小重启间隔，单位：秒
-LAST_ERROR_TIME=0 # 错误标记时间
-last_check_time=0  # 上次检查时间
-check_interval=300 # 检查间隔，单位：秒（5分钟）
 
 # 记录日志的函数
 log_message() {
@@ -158,17 +154,12 @@ cleanup_package_lists
 
 # 监控容器日志并触发操作
 while true; do
+    log_message "${BLUE}开始监控容器日志...${RESET}"
+
     # 获取最新日志并逐行读取（只读取最新10条)
     docker logs --tail 10 "$CONTAINER_NAME" | while read -r line; do
-        log_message "${BLUE}开始监控容器日志...${RESET}"
-
         # 只在检测到异常时触发重启
-        if echo "$line" | grep -q "Last pong received.*Sending reconnect signal" || \
-           echo "$line" | grep -q "Failed to authenticate" || \
-           echo "$line" | grep -q "Failed to connect to Hive" || \
-           echo "$line" | grep -q "already running" || \
-           echo "$line" | grep -q "\"message\": \"Internal server error\"" ; then
-
+        if echo "$line" | grep -qE "Last pong received.*Sending reconnect signal|Failed to authenticate|Failed to connect to Hive|already running|\"message\": \"Internal server error\"" ; then
             log_message "${BLUE}检测到错误，正在重新连接...${RESET}"
 
             # 执行容器操作
@@ -183,6 +174,9 @@ while true; do
 
             # 记录服务已重启
             echo "$(date): 服务已重启" >> "$LOG_FILE"
+
+            # 退出当前循环，等待下次 5 分钟检查
+            break
         fi
     done
 
@@ -190,3 +184,4 @@ while true; do
     log_message "${BLUE}容器日志已检查，5分钟后再次检查...${RESET}"
     sleep 300
 done
+
